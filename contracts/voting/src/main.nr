@@ -15,7 +15,13 @@ contract Counter {
         },
         state_vars::map::Map,
     };
-  
+    use dep::value_note::{
+            balance_utils,
+            value_note::{
+                ValueNoteMethods,
+                VALUE_NOTE_LEN,
+            },
+    };
     use dep::easy_private_state::easy_private_state::EasyPrivateUint;
 // docs:end:imports
 
