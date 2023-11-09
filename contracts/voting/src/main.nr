@@ -4,7 +4,7 @@
 // admin who deploys is admin of contract and can call vote_ended 
 // vote_ended is private and then sends result to public function, which updates public persistent state
 // then anyone can call that public function 
-
+mod types;
 contract Counter {
 // docs:start:imports
     use dep::aztec::{
@@ -28,6 +28,8 @@ contract Counter {
     use dep::safe_math::SafeU120;
     use dep::easy_private_state::easy_private_state::EasyPrivateUint;
     use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
+
+    use crate::types::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN};
 
 // docs:end:imports
 
@@ -81,12 +83,12 @@ contract Counter {
         thing = res;
     }
 
-// // docs:start:get_counter
-//     unconstrained fn get_counter(owner: Field) -> Field {
-//     let counters = storage.counters;
-//     balance_utils::get_balance(counters.at(owner).set)
-//     }
-// // docs:end:get_counter
+    unconstrained fn get_vote(vote: Field) -> Field {
+        let tally = storage.tally;
+        SafeU120SerializationMethods.deserialize(res)
+        let res = tally.at(vote).deserializeU120();
+    }
+    
 
 // docs:start:nullifier
     unconstrained fn compute_note_hash_and_nullifier(
