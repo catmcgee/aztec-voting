@@ -13,7 +13,10 @@ contract Counter {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        state_vars::map::Map,
+         state_vars::{
+            immutable_singleton::ImmutableSingleton, map::Map, public_state::PublicState, set::Set,
+            singleton::Singleton,
+        },
     };
     use dep::value_note::{
             balance_utils,
@@ -22,14 +25,17 @@ contract Counter {
                 VALUE_NOTE_LEN,
             },
     };
+    use dep::safe_math::SafeU120;
     use dep::easy_private_state::easy_private_state::EasyPrivateUint;
+    use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
+
 // docs:end:imports
 
 // docs:start:storage_struct
 
     struct Storage {
         counters: Map<EasyPrivateUint>,
-        tally: EasyPrivateUint,
+        tally: Map<SafeU120>
     }
 
 // docs:end:storage_struct
@@ -45,10 +51,14 @@ contract Counter {
                         EasyPrivateUint::new(context, slot)
                     },
                 ),
-                tally: EasyPrivateUint::new(
+                    tally: Map::new(
                     context,
-                    2
-                    ),
+                    2,
+                    |context, slot| {
+                        SafeU120::new(0)
+                    },
+                ),
+
             }
         }
     }
@@ -63,9 +73,12 @@ contract Counter {
 
 
     #[aztec(private)]
-      fn increment(owner: Field)  {
+      fn vote(owner: Field, vote: Field)  {
         let tally = storage.tally;
-        tally.add(1);
+        let mut thing = tally.at(vote);
+        let a = SafeU120::new(1);
+        let res = SafeU120::add(thing, a);
+        thing = res;
     }
 
 // // docs:start:get_counter
