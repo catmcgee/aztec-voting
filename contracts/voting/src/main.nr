@@ -1,12 +1,11 @@
 // everyone has 1 vote (maybe if its easy to implement 1 each) - we use counter
-// they vote yes or no on proposal which pluses or minuses another counter 
+// they vote yes or no on proposal which pluses or minuses another counter
 // proposal and vote exists in the constructor
-// admin who deploys is admin of contract and can call vote_ended 
+// admin who deploys is admin of contract and can call vote_ended
 // vote_ended is private and then sends result to public function, which updates public persistent state
-// then anyone can call that public function 
+// then anyone can call that public function
 mod types;
 contract Counter {
-// docs:start:imports
     use dep::aztec::{
         context::{PrivateContext, Context},
         note::{
@@ -31,18 +30,15 @@ contract Counter {
 
     use crate::types::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN};
 
-// docs:end:imports
 
-// docs:start:storage_struct
 
     struct Storage {
         counters: Map<EasyPrivateUint>,
-        tally: Map<SafeU120>
+        // tally: Map<SafeU120>
+        tally: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>
     }
 
-// docs:end:storage_struct
 
-// docs:start:storage_init
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
@@ -57,40 +53,36 @@ contract Counter {
                     context,
                     2,
                     |context, slot| {
-                        SafeU120::new(0)
+                        PublicState::new(
+                            context,
+                            slot,
+                            SafeU120SerializationMethods,
+                        )
                     },
                 ),
 
             }
         }
     }
-// docs:end:storage_init
 
-// docs:start:constructor
     #[aztec(private)]
     fn constructor(proposal: Field, admin: Field) {
 
     }
-// docs:end:constructor
 
 
-    #[aztec(private)]
+    #[aztec(public)]
       fn vote(owner: Field, vote: Field)  {
-        let tally = storage.tally;
-        let mut thing = tally.at(vote);
-        let a = SafeU120::new(1);
-        let res = SafeU120::add(thing, a);
-        thing = res;
+        let amount = SafeU120::new(1);
+        let new_tally = storage.tally.at(vote).read().add(amount);
+        storage.tally.at(vote).write(new_tally)
     }
 
-    unconstrained fn get_vote(vote: Field) -> Field {
-        let tally = storage.tally;
-        SafeU120SerializationMethods.deserialize(res)
-        let res = tally.at(vote).deserializeU120();
+    unconstrained fn get_vote(vote: Field) -> u120 {
+        storage.tally.at(vote).read().value
     }
-    
 
-// docs:start:nullifier
+
     unconstrained fn compute_note_hash_and_nullifier(
     contract_address: Field,
     nonce: Field,
@@ -100,5 +92,4 @@ contract Counter {
     let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
     note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
-// docs:end:nullifier
 }
