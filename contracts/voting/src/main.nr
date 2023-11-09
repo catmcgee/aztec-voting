@@ -17,11 +17,11 @@ contract Voting {
             immutable_singleton::ImmutableSingleton, map::Map, public_state::PublicState, set::Set,
             singleton::Singleton,
         },
-        types::{
-            type_serialization::aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
+        types::type_serialization::{
             bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
-            address::{AztecAddress}
-        };
+            aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
+        },
+        types::address::{AztecAddress}
     };
     use dep::value_note::{
             balance_utils,
@@ -80,12 +80,10 @@ struct Storage {
                     context,
                     1,
                     BoolSerializationMethods,
-                ),
-            },
-             
+                )
+            }
             }
         }
-    
 
     #[aztec(private)]
     fn constructor(admin: Field) {
@@ -95,13 +93,14 @@ struct Storage {
     }
 
     #[aztec(private)]
-      fn vote(owner: Field)  {
-        if (voteEnded == true) {
-            assert(false, "vote has ended");
-        }
+      fn cast_vote(owner: Field, vote: Field)  {
+        assert(storage.voteEnded.read() == true, "Vote has ended");
         let voteCount = balance_utils::get_balance(storage.voteCount.at(owner).set);
         if (voteCount == 0) {
-            add_to_tally_public(vote)
+            context.call_public_function(
+                owner,
+                add_to_tally_public,
+                owner)
         }
         else {
             assert(false, "already voted");
@@ -118,7 +117,7 @@ struct Storage {
     #[aztec(public)]
     fn end_vote() {
         assert(storage.admin.read().eq(AztecAddress::new(context.msg_sender())), "Only admin can end votes");
-        storage.voteEnded.write(approve);
+        storage.voteEnded.write(true);
     }
 
     unconstrained fn get_vote(vote: Field) -> u120 {
