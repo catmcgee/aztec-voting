@@ -1,10 +1,5 @@
-// everyone has 1 vote (maybe if its easy to implement 1 each) - we use counter
-// they vote yes or no on voteId which pluses or minuses another counter 
-// proposal and vote exists in the constructor
-// admin who deploys is admin of contract and can call vote_ended 
-// vote_ended is private and then sends result to public function, which updates public persistent state
-// then anyone can call that public function 
-// TODO cant call unconstrained balance utils from constrinaed function - find another way 
+// bugs
+// something to do with boolean i added into storage
 mod types;
 contract Voting {
 // docs:start:imports
@@ -23,6 +18,7 @@ contract Voting {
             aztec_address_serialization::{AztecAddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
         types::address::{AztecAddress},
+
               
 
     };
@@ -38,13 +34,13 @@ contract Voting {
 
     use crate::types::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN};
 
-
+use dep::aztec::oracle::debug_log::{ debug_log, debug_log_field, debug_log_format };
 
 struct Storage {
-    voteCount: Map<EasyPrivateUint>,
+    hasVoted: Map<bool>,
     tally: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
     admin: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
-    voteEnded: PublicState<bool, BOOL_SERIALIZED_LEN>
+    voteEnded: PublicState<bool, BOOL_SERIALIZED_LEN>,
     }
 
     impl Storage {
@@ -55,14 +51,7 @@ struct Storage {
                     1,
                     AztecAddressSerializationMethods,
                 ),
-                voteCount: Map::new(
-                    context,
-                    1,
-                    |context, slot| {
-                        EasyPrivateUint::new(context, slot)
-                    },
-                ),
-                 tally: Map::new(
+                tally: Map::new(
                     context,
                     2,
                     |context, slot| {
@@ -73,9 +62,16 @@ struct Storage {
                         )
                     },
                  ),
+                 hasVoted: Map::new( // idk to do booleans
+                    context,
+                    3,
+                    |context, slot| {
+                      false
+                    },
+                 ),
                   voteEnded: PublicState::new(
                     context,
-                    1,
+                    4,
                     BoolSerializationMethods,
                 )
             }
@@ -83,17 +79,24 @@ struct Storage {
         }
 
     #[aztec(private)]
-    fn constructor(admin: Field) {
-        storage.admin.write(AztecAddress::new(admin));
+    fn constructor(admin: AztecAddress) {
+        context.call_public_function(context.this_address(), compute_selector("set_admin((Field))"), [admin.address]);
+        
+    }
+
+    #[aztec(public)]
+    fn set_admin(admin: AztecAddress) {
+      
+        storage.admin.write(admin);
         storage.voteEnded.write(false);   
     }
 
     #[aztec(private)]
       fn cast_vote(owner: Field, vote: Field)  {
-          let voteCount = storage.voteCount;
-          // TODO here
-         let userVoteCount = balance_utils::get_balance(voteCount.at(owner).set);
-        assert(0 == 0, "Already voted");
+
+        assert(hasVoted==false, "Already voted");
+        storage.hasVoted.at(owner) = true; // not sure how to do this
+        
            context.call_public_function(
             context.this_address(),
             compute_selector("add_to_tally_public(Field)"),
@@ -103,7 +106,7 @@ struct Storage {
 
      #[aztec(public)]
      fn add_to_tally_public(vote: Field) {
-      let amount = SafeU120::new(1);
+        let amount = SafeU120::new(1);
         let new_tally = storage.tally.at(vote).read().add(amount);
         storage.tally.at(vote).write(new_tally);
         
