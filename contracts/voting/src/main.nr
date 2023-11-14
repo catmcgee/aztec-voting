@@ -11,7 +11,7 @@ contract Voting {
         },
         selector::compute_selector,
          state_vars::{
-            map::Map, public_state::PublicState,
+            map::Map, public_state::PublicState, singleton::Singleton,
         },
         types::type_serialization::{
             bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
@@ -25,6 +25,7 @@ contract Voting {
     use dep::value_note::{
             balance_utils,
             value_note::{
+                ValueNote,
                 ValueNoteMethods,
                 VALUE_NOTE_LEN,
             },
@@ -37,9 +38,9 @@ contract Voting {
 use dep::aztec::oracle::debug_log::{ debug_log, debug_log_field, debug_log_format };
 
 struct Storage {
-    hasVoted: Map<bool>,
-    tally: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
     admin: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
+    numberOfVotes: Map<Singleton<ValueNote, VALUE_NOTE_LEN>>,
+    tally: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
     voteEnded: PublicState<bool, BOOL_SERIALIZED_LEN>,
     }
 
@@ -62,13 +63,13 @@ struct Storage {
                         )
                     },
                  ),
-                 hasVoted: Map::new( // idk to do booleans
+               numberOfVotes: Map::new(
                     context,
                     3,
                     |context, slot| {
-                      false
+                        Singleton::new(context, slot, ValueNoteMethods)
                     },
-                 ),
+                ),
                   voteEnded: PublicState::new(
                     context,
                     4,
@@ -94,9 +95,13 @@ struct Storage {
     #[aztec(private)]
       fn cast_vote(owner: Field, vote: Field)  {
 
-        assert(hasVoted==false, "Already voted");
-        storage.hasVoted.at(owner) = true; // not sure how to do this
-        
+        let numberOfVotes = storage.numberOfVotes.at(owner).get_note(true); 
+        let zero = ValueNote::new(0, owner);
+
+        assert(numberOfVotes.value != zero.value, "Already voted");
+        let newNumberOfVotes = &mut ValueNote::new(numberOfVotes.value - 1, owner);
+        storage.numberOfVotes.at(owner).replace(newNumberOfVotes, true);
+
            context.call_public_function(
             context.this_address(),
             compute_selector("add_to_tally_public(Field)"),
