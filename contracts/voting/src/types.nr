@@ -3,7 +3,6 @@ use dep::safe_math::SafeU120;
 
 global SAFE_U120_SERIALIZED_LEN: Field = 1;
 
-// This is safe when reading from storage IF only correct safeu120 was written to storage
 pub fn deserializeU120(fields: [Field; SAFE_U120_SERIALIZED_LEN]) -> SafeU120 {
     SafeU120{value: fields[0] as u120}
 }
